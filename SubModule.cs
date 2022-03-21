@@ -6,11 +6,13 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.Encounters;
+using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.CampaignSystem.Settlements.Locations;
 using TaleWorlds.CampaignSystem.Settlements.Workshops;
+using TaleWorlds.CampaignSystem.ViewModelCollection;
 using TaleWorlds.Core;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
@@ -55,7 +57,7 @@ namespace TestArtisan
             _partyItems = MobileParty.MainParty.ItemRoster;
             _beerCount = _partyItems.GetItemNumber(_beerObject);
             _mission = mission;
-            
+
         }
 
         [DataSourceProperty]
@@ -134,6 +136,7 @@ namespace TestArtisan
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         }
         CharacterObject artisanBrewer;
+        ItemObject artisanBeer;
 
         private void DailyTickSettlement(Settlement settlement)
         {
@@ -169,45 +172,100 @@ namespace TestArtisan
         private void OnSessionLaunched(CampaignGameStarter starter)
         {
             artisanBrewer = MBObjectManager.Instance.GetObject<CharacterObject>("artisan_brewer");
-            {
-                //string id, string inputToken, string outputToken, string text, ConversationSentence.OnConditionDelegate conditionDelegate, ConversationSentence.OnConsequenceDelegate consequenceDelegate, int priority = 100, ConversationSentence.OnClickableConditionDelegate clickableConditionDelegate = null
-                starter.AddDialogLine("artisan_beer_store_empty", "start", "exit", "Howdy, Are you here to buy Beer? Unfortunately we are out of stock. Come back later.",
-                    () => {
-                        if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
-                        var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
-                        if (w == null || Settlement.CurrentSettlement == null) return false;
-                        return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) <= 0;
-                    }, null);
-                starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.",
-                    () => {
-                        if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
-                        var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
-                        if (w == null || Settlement.CurrentSettlement == null) return false;
-                        return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) > 0;
-                        }, null);
-                starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () =>
-                {
-                    Hero.MainHero.ChangeHeroGold(-100);
-                    Hero.MainHero.PartyBelongedTo.ItemRoster.AddToCounts(MBObjectManager.Instance.GetObject<ItemObject>("artisan_beer"), 1);
+            artisanBeer = MBObjectManager.Instance.GetObject<ItemObject>("artisan_beer");
 
+            AddDialogs(starter);
+            AddGameMenus(starter);
+
+        }
+
+        private void AddDialogs(CampaignGameStarter starter)
+        {
+            starter.AddDialogLine("artisan_beer_store_empty", "start", "exit", "Howdy, Are you here to buy Beer? Unfortunately we are out of stock. Come back later.",
+                () =>
+                {
+                    if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
                     var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
-                    StorageAddCount(Settlement.CurrentSettlement.StringId, w.Tag, -1);
-                }, 100, (out TextObject explanation) =>
+                    if (w == null || Settlement.CurrentSettlement == null) return false;
+                    return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) <= 0;
+                }, null);
+            starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.",
+                () =>
                 {
-                    if (Hero.MainHero.Gold < 100)
-                    {
-                        explanation = new TextObject("Not enough money");
-                        return false;
-                    }
-                    explanation = TextObject.Empty;
-                    return true;
-                });
-                starter.AddPlayerLine("player_nah", "wanna_buy", "your_loss", "Nah, I'll pass", null, null);
+                    if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
+                    var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
+                    if (w == null || Settlement.CurrentSettlement == null) return false;
+                    return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) > 0;
+                }, null);
+            starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () =>
+            {
+                Hero.MainHero.ChangeHeroGold(-100);
+                Hero.MainHero.PartyBelongedTo.ItemRoster.AddToCounts(artisanBeer, 1);
 
-                starter.AddDialogLine("your_loss", "your_loss", "exit", "Your loss", null, null);
-                starter.AddDialogLine("thanks", "thanks", "exit", "Thank you come again", null, null);
+                var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
+                StorageAddCount(Settlement.CurrentSettlement.StringId, w.Tag, -1);
+            }, 100, (out TextObject explanation) =>
+            {
+                if (Hero.MainHero.Gold < 100)
+                {
+                    explanation = new TextObject("Not enough money");
+                    return false;
+                }
+                explanation = TextObject.Empty;
+                return true;
+            });
+            starter.AddPlayerLine("player_nah", "wanna_buy", "your_loss", "Nah, I'll pass", null, null);
+
+            starter.AddDialogLine("your_loss", "your_loss", "exit", "Your loss", null, null);
+            starter.AddDialogLine("thanks", "thanks", "exit", "Thank you come again", null, null);
+        }
+        Workshop FirstPlayerLocalBrewery()
+        {
+            if (Settlement.CurrentSettlement == null) return null;
+            foreach (var w in Settlement.CurrentSettlement.Town.Workshops)
+            {
+                if (w.Owner == Hero.MainHero && w.WorkshopType.StringId == "brewery") return w;
             }
+            return null;
+        }
+        private void AddGameMenus(CampaignGameStarter starter)
+        {
+            starter.AddGameMenuOption("town", "town_brewery", "Manage Brewery", (args) =>
+            {
+                args.optionLeaveType = GameMenuOption.LeaveType.Submenu;
+                return FirstPlayerLocalBrewery() != null;
+            }, (args) => { GameMenu.SwitchToMenu("town_brewery"); }, false, 9);
+            starter.AddGameMenu("town_brewery", "Brewery", (args) => { }, TaleWorlds.CampaignSystem.Overlay.GameOverlays.MenuOverlayType.SettlementWithCharacters);
+            starter.AddGameMenuOption("town_brewery", "town_brewery_inventory", "Access brewery storage", Submenu, (args) => {
+                List<InquiryElement> list = new List<InquiryElement>();
+                var brewery = FirstPlayerLocalBrewery();
+                if (brewery != null) {
+                    for (int i = 0; i < BeerInStorage(Settlement.CurrentSettlement.StringId, brewery.Tag); i++)
+                    {
+                        list.Add(new InquiryElement(artisanBeer, "Artisan Beer", new ImageIdentifier(artisanBeer)));
+                    }
+                }
+                InformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData("Inventory", "Take item", list, true, 5, "Take", new TextObject("{=3CpNUnVl}Cancel", null).ToString(), TakeFromStorage, (args) => { }));
+            });
+            starter.AddGameMenuOption("town_brewery", "town_brewery_manage", "Manage Production", Submenu, (args) => { });
+            starter.AddGameMenuOption("town_brewery", "town_brewery_back", "{=qWAmxyYz}Back to town center", (args) => { args.optionLeaveType = GameMenuOption.LeaveType.Leave; return true; },
+                (args) => GameMenu.SwitchToMenu("town"));
+        }
 
+        private void TakeFromStorage(List<InquiryElement> list)
+        {
+            var brewery = FirstPlayerLocalBrewery();
+            if (brewery != null)
+            {
+                StorageAddCount(Settlement.CurrentSettlement.StringId, brewery.Tag, -list.Count);
+                MobileParty.MainParty.ItemRoster.AddToCounts(artisanBeer, list.Count);
+            }
+        }
+
+        private static bool Submenu(MenuCallbackArgs args)
+        {
+            args.optionLeaveType = GameMenuOption.LeaveType.Submenu;
+            return true;
         }
 
         private void SpawnLocationCharacters(Dictionary<string, int> unusedUsablePointCount)
