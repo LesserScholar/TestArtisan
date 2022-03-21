@@ -19,6 +19,7 @@ using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Missions;
+using TaleWorlds.MountAndBlade.View.Screen;
 using TaleWorlds.ObjectSystem;
 using TaleWorlds.SaveSystem;
 using TaleWorlds.ScreenSystem;
@@ -127,6 +128,14 @@ namespace TestArtisan
         }
     }
 
+    public static class Extensions
+    {
+        public static string ArtisanWorkshopId(this Workshop workshop)
+        {
+            return workshop.Settlement.StringId + "_" + workshop.Tag;
+        }
+    }
+
     public class MyBehavior : CampaignBehaviorBase
     {
         public override void RegisterEvents()
@@ -134,9 +143,17 @@ namespace TestArtisan
             CampaignEvents.DailyTickSettlementEvent.AddNonSerializedListener(this, DailyTickSettlement);
             CampaignEvents.LocationCharactersAreReadyToSpawnEvent.AddNonSerializedListener(this, SpawnLocationCharacters);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
+            CampaignEvents.OnWorkshopChangedEvent.AddNonSerializedListener(this, OnWorkshopChanged);
         }
+
+        private void OnWorkshopChanged(Workshop workshop, Hero arg2, WorkshopType arg3)
+        {
+            artisanWorkshops.Remove(workshop.ArtisanWorkshopId());
+        }
+
         CharacterObject artisanBrewer;
         ItemObject artisanBeer;
+
 
         private void DailyTickSettlement(Settlement settlement)
         {
@@ -146,7 +163,7 @@ namespace TestArtisan
                 if (w.WorkshopType.StringId == "brewery")
                 {
                     InformationManager.DisplayMessage(new InformationMessage(String.Format("{0} has {1}", settlement.Name, w.Name)));
-                    StorageAddCount(settlement.StringId, w.Tag, 1);
+                    GetArtisanWorkshop(w).Inventory += 1;
                 }
             }
         }
@@ -176,7 +193,6 @@ namespace TestArtisan
 
             AddDialogs(starter);
             AddGameMenus(starter);
-
         }
 
         private void AddDialogs(CampaignGameStarter starter)
@@ -186,8 +202,8 @@ namespace TestArtisan
                 {
                     if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
                     var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
-                    if (w == null || Settlement.CurrentSettlement == null) return false;
-                    return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) <= 0;
+                    if (w == null) return false;
+                    return GetArtisanWorkshop(w).Inventory <= 0;
                 }, null);
             starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.",
                 () =>
@@ -195,7 +211,7 @@ namespace TestArtisan
                     if (CharacterObject.OneToOneConversationCharacter != artisanBrewer) return false;
                     var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
                     if (w == null || Settlement.CurrentSettlement == null) return false;
-                    return BeerInStorage(Settlement.CurrentSettlement.StringId, w.Tag) > 0;
+                    return GetArtisanWorkshop(w).Inventory > 0;
                 }, null);
             starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () =>
             {
@@ -203,7 +219,7 @@ namespace TestArtisan
                 Hero.MainHero.PartyBelongedTo.ItemRoster.AddToCounts(artisanBeer, 1);
 
                 var w = FindCurrentWorkshop(ConversationMission.OneToOneConversationAgent);
-                StorageAddCount(Settlement.CurrentSettlement.StringId, w.Tag, -1);
+                GetArtisanWorkshop(w).Inventory -= 1;
             }, 100, (out TextObject explanation) =>
             {
                 if (Hero.MainHero.Gold < 100)
@@ -236,18 +252,23 @@ namespace TestArtisan
                 return FirstPlayerLocalBrewery() != null;
             }, (args) => { GameMenu.SwitchToMenu("town_brewery"); }, false, 9);
             starter.AddGameMenu("town_brewery", "Brewery", (args) => { }, TaleWorlds.CampaignSystem.Overlay.GameOverlays.MenuOverlayType.SettlementWithCharacters);
-            starter.AddGameMenuOption("town_brewery", "town_brewery_inventory", "Access brewery storage", Submenu, (args) => {
+            starter.AddGameMenuOption("town_brewery", "town_brewery_inventory", "Access brewery storage", Submenu, (args) =>
+            {
                 List<InquiryElement> list = new List<InquiryElement>();
                 var brewery = FirstPlayerLocalBrewery();
-                if (brewery != null) {
-                    for (int i = 0; i < BeerInStorage(Settlement.CurrentSettlement.StringId, brewery.Tag); i++)
+                if (brewery != null)
+                {
+                    for (int i = 0; i < GetArtisanWorkshop(brewery).Inventory; i++)
                     {
                         list.Add(new InquiryElement(artisanBeer, "Artisan Beer", new ImageIdentifier(artisanBeer)));
                     }
                 }
                 InformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData("Inventory", "Take item", list, true, 5, "Take", new TextObject("{=3CpNUnVl}Cancel", null).ToString(), TakeFromStorage, (args) => { }));
             });
-            starter.AddGameMenuOption("town_brewery", "town_brewery_manage", "Manage Production", Submenu, (args) => { });
+            starter.AddGameMenuOption("town_brewery", "town_brewery_manage", "Manage Production", Submenu, (args) =>
+            {
+                GameStateManager.Current.PushState(GameStateManager.Current.CreateState<BreweryManagementState>());
+            });
             starter.AddGameMenuOption("town_brewery", "town_brewery_back", "{=qWAmxyYz}Back to town center", (args) => { args.optionLeaveType = GameMenuOption.LeaveType.Leave; return true; },
                 (args) => GameMenu.SwitchToMenu("town"));
         }
@@ -257,7 +278,7 @@ namespace TestArtisan
             var brewery = FirstPlayerLocalBrewery();
             if (brewery != null)
             {
-                StorageAddCount(Settlement.CurrentSettlement.StringId, brewery.Tag, -list.Count);
+                GetArtisanWorkshop(brewery).Inventory -= list.Count;
                 MobileParty.MainParty.ItemRoster.AddToCounts(artisanBeer, list.Count);
             }
         }
@@ -306,38 +327,135 @@ namespace TestArtisan
 
             }
         }
-        int BeerInStorage(string s, string w)
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("clear_data", "artisan_workshops")]
+        public static string ClearArtisanWorkshopData(List<string> strings)
         {
-            int value;
-            if (beer_storage.TryGetValue(s + '_' + w, out value)) return value;
-            return 0;
-        }
-        void StorageAddCount(string s, string w, int count)
-        {
-            int value;
-            if (!beer_storage.TryGetValue(s + '_' + w, out value)) value = 0;
-
-            value += count;
-
-            if (value < 0) throw new ArgumentException("Trying to pull nonexistent artisan beer from storage");
-            if (value > 5) value = 5;
-
-            beer_storage[s + '_' + w] = value;
+            Campaign.Current.GetCampaignBehavior<MyBehavior>().artisanWorkshops.Clear();
+            return "";
         }
 
-        Dictionary<string, int> beer_storage = new Dictionary<string, int>();
+        Dictionary<string, ArtisanWorkshopState> artisanWorkshops = new Dictionary<string, ArtisanWorkshopState>();
+        ArtisanWorkshopState GetArtisanWorkshop(Workshop w)
+        {
+            ArtisanWorkshopState state;
+            if (artisanWorkshops.TryGetValue(w.ArtisanWorkshopId(), out state)) return state;
+            state = new ArtisanWorkshopState();
+            artisanWorkshops[w.ArtisanWorkshopId()] = state;
+            return state;
+        }
 
         public override void SyncData(IDataStore dataStore)
         {
-            dataStore.SyncData("beer_storage", ref beer_storage);
+            dataStore.SyncData("artisan_workshops", ref artisanWorkshops);
         }
     }
+
+    public class ArtisanWorkshopState
+    {
+        [SaveableField(0)]
+        private int _inventory = 0;
+        public int Inventory
+        {
+            get { return _inventory; }
+            set
+            {
+                _inventory = TaleWorlds.Library.MBMath.ClampInt(value, 0, inventoryMax);
+            }
+        }
+        [SaveableField(1)]
+        public int dailyProduction = 1;
+
+        public const int inventoryMax = 10;
+
+    }
+
     public class TypeDefiner : SaveableTypeDefiner
     {
-        public TypeDefiner() : base(423_324_859)
+        public TypeDefiner() : base(423_324_859) { }
+        protected override void DefineClassTypes()
         {
+            AddClassDefinition(typeof(ArtisanWorkshopState), 1);
         }
         protected override void DefineContainerDefinitions()
+        {
+            ConstructContainerDefinition(typeof(Dictionary<string, ArtisanWorkshopState>));
+        }
+    }
+
+    public class BreweryManagementState : GameState
+    {
+    }
+
+    public class BreweryManagementVM : ViewModel
+    {
+
+        [DataSourceProperty]
+        public string CancelLbl => "Cancel";
+        [DataSourceProperty]
+        public string DoneLbl => "Done";
+
+        float _production;
+        [DataSourceProperty]
+        public float Production { get { return _production; } set { _production = value; OnPropertyChanged("Production"); } }
+
+        [DataSourceProperty]
+        public string ProductionText => "Production ratio";
+
+        public void ExecuteDone()
+        {
+            GameStateManager.Current.PopState();
+        }
+        public void ExecuteCancel()
+        {
+            GameStateManager.Current.PopState();
+        }
+    }
+
+
+    [GameStateScreen(typeof(BreweryManagementState))]
+    public class BreweryManagementScreen : ScreenBase, IGameStateListener
+    {
+        BreweryManagementState _state;
+        BreweryManagementVM _dataSource;
+        GauntletLayer _layer;
+        public BreweryManagementScreen(BreweryManagementState state)
+        {
+            _state = state;
+            state.Listener = this;
+        }
+
+        protected override void OnFrameTick(float dt)
+        {
+            base.OnFrameTick(dt);
+
+            if (_layer.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.Escape)) _dataSource.ExecuteCancel();
+            if (_layer.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.Enter)) _dataSource.ExecuteDone();
+        }
+        void IGameStateListener.OnActivate()
+        {
+            _dataSource = new BreweryManagementVM();
+            _layer = new GauntletLayer(0, "GauntletLayer", true);
+            var movie = _layer.LoadMovie("BreweryManagement", _dataSource);
+            AddLayer(_layer);
+            _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+            _layer.IsFocusLayer = true;
+            ScreenManager.TrySetFocus(_layer);
+        }
+
+        void IGameStateListener.OnDeactivate()
+        {
+            _layer.IsFocusLayer = false;
+            _layer.InputRestrictions.ResetInputRestrictions();
+            RemoveLayer(_layer);
+            ScreenManager.TryLoseFocus(_layer);
+        }
+
+        void IGameStateListener.OnFinalize()
+        {
+        }
+
+        void IGameStateListener.OnInitialize()
         {
         }
     }
