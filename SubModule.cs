@@ -34,29 +34,47 @@ namespace TestArtisan
     {
         public override void RegisterEvents()
         {
+            CampaignEvents.DailyTickSettlementEvent.AddNonSerializedListener(this, DailyTickSettlement);
             CampaignEvents.LocationCharactersAreReadyToSpawnEvent.AddNonSerializedListener(this, SpawnLocationCharacters);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         }
 
+        private void DailyTickSettlement(Settlement settlement)
+        {
+            if (settlement.Town == null) return;
+            foreach (var w in settlement.Town.Workshops)
+            {
+                if (w.WorkshopType.StringId == "brewery")
+                    InformationManager.DisplayMessage(new InformationMessage(String.Format("{0} has {1}", settlement.Name, w.Name)));
+            }
+        }
+
         private void OnSessionLaunched(CampaignGameStarter starter)
         {
-            //string id, string inputToken, string outputToken, string text, ConversationSentence.OnConditionDelegate conditionDelegate, ConversationSentence.OnConsequenceDelegate consequenceDelegate, int priority = 100, ConversationSentence.OnClickableConditionDelegate clickableConditionDelegate = null
-            starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.", () => CharacterObject.OneToOneConversationCharacter == Settlement.CurrentSettlement.Culture.CaravanMaster, null);
-            starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () => { Hero.MainHero.ChangeHeroGold(-100);
-                Hero.MainHero.PartyBelongedTo.ItemRoster.AddToCounts(MBObjectManager.Instance.GetObject<ItemObject>("beer"), 1); }, 100, (out TextObject explanation) =>
             {
-                if (Hero.MainHero.Gold < 100)
+                //string id, string inputToken, string outputToken, string text, ConversationSentence.OnConditionDelegate conditionDelegate, ConversationSentence.OnConsequenceDelegate consequenceDelegate, int priority = 100, ConversationSentence.OnClickableConditionDelegate clickableConditionDelegate = null
+                starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.", 
+                    () => CharacterObject.OneToOneConversationCharacter == Settlement.CurrentSettlement.Culture.CaravanMaster, null);
+                starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () =>
                 {
-                    explanation = new TextObject("Not enough money");
-                    return false;
-                }
-                explanation = TextObject.Empty;
-                return true;
-            });
-            starter.AddPlayerLine("player_nah", "wanna_buy", "your_loss", "Nah, I'll pass", null, null);
+                    Hero.MainHero.ChangeHeroGold(-100);
+                    Hero.MainHero.PartyBelongedTo.ItemRoster.AddToCounts(MBObjectManager.Instance.GetObject<ItemObject>("beer"), 1);
+                }, 140, (out TextObject explanation) =>
+                {
+                    if (Hero.MainHero.Gold < 100)
+                    {
+                        explanation = new TextObject("Not enough money");
+                        return false;
+                    }
+                    explanation = TextObject.Empty;
+                    return true;
+                });
+                starter.AddPlayerLine("player_nah", "wanna_buy", "your_loss", "Nah, I'll pass", null, null);
 
-            starter.AddDialogLine("your_loss", "your_loss", "exit", "Your loss", null, null);
-            starter.AddDialogLine("thanks", "thanks", "exit", "Thank you come again", null, null);
+                starter.AddDialogLine("your_loss", "your_loss", "exit", "Your loss", null, null);
+                starter.AddDialogLine("thanks", "thanks", "exit", "Thank you come again", null, null);
+            }
+
         }
 
         private void SpawnLocationCharacters(Dictionary<string, int> unusedUsablePointCount)
@@ -76,7 +94,7 @@ namespace TestArtisan
                             CharacterObject caravanMaster = Settlement.CurrentSettlement.Culture.CaravanMaster;
 
                             string actionSetCode = "as_human_villager_drinker_with_mug";
-                            string value = "kitchen_mug_a_drink_anim";
+                            string value = "artisan_beer_drink_anim";
                             var agentData = new AgentData(new SimpleAgentOrigin(caravanMaster, -1, null, default(UniqueTroopDescriptor))).Monster(Campaign.Current.HumanMonsterSettlement);
                             LocationCharacter locationCharacter = new LocationCharacter(
                                 agentData,
@@ -91,6 +109,7 @@ namespace TestArtisan
                                     }
                                 }
                             };
+                            
                             locationWithId.AddCharacter(locationCharacter);
                         }
                     }
