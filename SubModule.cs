@@ -38,6 +38,7 @@ namespace TestArtisan
             CampaignEvents.LocationCharactersAreReadyToSpawnEvent.AddNonSerializedListener(this, SpawnLocationCharacters);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         }
+        CharacterObject artisanBrewer;
 
         private void DailyTickSettlement(Settlement settlement)
         {
@@ -51,10 +52,11 @@ namespace TestArtisan
 
         private void OnSessionLaunched(CampaignGameStarter starter)
         {
+            artisanBrewer = MBObjectManager.Instance.GetObject<CharacterObject>("artisan_brewer");
             {
                 //string id, string inputToken, string outputToken, string text, ConversationSentence.OnConditionDelegate conditionDelegate, ConversationSentence.OnConsequenceDelegate consequenceDelegate, int priority = 100, ConversationSentence.OnClickableConditionDelegate clickableConditionDelegate = null
                 starter.AddDialogLine("artisan_beer_start", "start", "wanna_buy", "Howdy, You gonna buy some beer? One jug is 100 denars.", 
-                    () => CharacterObject.OneToOneConversationCharacter == Settlement.CurrentSettlement.Culture.CaravanMaster, null);
+                    () => CharacterObject.OneToOneConversationCharacter == artisanBrewer, null);
                 starter.AddPlayerLine("player_buy", "wanna_buy", "thanks", "Sure, I'll buy one", null, () =>
                 {
                     Hero.MainHero.ChangeHeroGold(-100);
@@ -91,11 +93,9 @@ namespace TestArtisan
                         unusedUsablePointCount.TryGetValue(workshop.Tag, out num);
                         if (num > 0)
                         {
-                            CharacterObject caravanMaster = Settlement.CurrentSettlement.Culture.CaravanMaster;
-
                             string actionSetCode = "as_human_villager_drinker_with_mug";
                             string value = "artisan_beer_drink_anim";
-                            var agentData = new AgentData(new SimpleAgentOrigin(caravanMaster, -1, null, default(UniqueTroopDescriptor))).Monster(Campaign.Current.HumanMonsterSettlement);
+                            var agentData = new AgentData(new SimpleAgentOrigin(artisanBrewer, -1, null, default(UniqueTroopDescriptor))).Monster(Campaign.Current.HumanMonsterSettlement);
                             LocationCharacter locationCharacter = new LocationCharacter(
                                 agentData,
                                 new LocationCharacter.AddBehaviorsDelegate(SandBoxManager.Instance.AgentBehaviorManager.AddWandererBehaviors),
