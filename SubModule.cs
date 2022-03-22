@@ -19,6 +19,7 @@ using TaleWorlds.CampaignSystem.Settlements.Locations;
 using TaleWorlds.CampaignSystem.Settlements.Workshops;
 using TaleWorlds.CampaignSystem.ViewModelCollection;
 using TaleWorlds.Core;
+using TaleWorlds.Engine;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
@@ -58,12 +59,16 @@ namespace TestArtisan
         ItemRoster _partyItems;
         int _beerCount;
         Mission _mission;
+
+        int soundIndex;
         public BeerMissionVM(Mission mission)
         {
             _beerObject = MBObjectManager.Instance.GetObject<ItemObject>("artisan_beer");
             _partyItems = MobileParty.MainParty.ItemRoster;
             _beerCount = _partyItems.GetItemNumber(_beerObject);
             _mission = mission;
+            soundIndex = SoundEvent.GetEventIdFromString("artisanbeer/combat/heal");
+            ;
         }
 
         [DataSourceProperty]
@@ -75,7 +80,7 @@ namespace TestArtisan
                 if (value != _beerCount)
                 {
                     _beerCount = value;
-                    OnPropertyChangedWithValue(value, "BeerCount");
+                    OnPropertyChangedWithValue(value, "BeerCount");     
                 }
             }
         }
@@ -99,6 +104,8 @@ namespace TestArtisan
             if (newHp > agent.HealthLimit) newHp = agent.HealthLimit;
             agent.Health = newHp;
             InformationManager.DisplayMessage(new InformationMessage(String.Format("Healed for {0} hp", newHp - oldHp)));
+            var sound = SoundEvent.CreateEvent(soundIndex, _mission.Scene);
+            sound.PlayInPosition(_mission.MainAgent.Position);
         }
     }
     public class BeerMissionView : MissionView
