@@ -1,9 +1,14 @@
-﻿using SandBox;
+﻿using HarmonyLib;
+using Helpers;
+using SandBox;
 using SandBox.Conversation;
 using System;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
+using TaleWorlds.CampaignSystem.CampaignBehaviors;
+using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameMenus;
@@ -31,7 +36,8 @@ namespace TestArtisan
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
-
+            Harmony harmony = new Harmony("TestArtisan");
+            harmony.PatchAll();
         }
         protected override void InitializeGameStarter(Game game, IGameStarter starterObject)
         {
@@ -161,9 +167,16 @@ namespace TestArtisan
             {
                 if (w.WorkshopType.StringId == "brewery")
                 {
-                    InformationManager.DisplayMessage(new InformationMessage(String.Format("{0} has {1}", settlement.Name, w.Name)));
                     var artisanWorkshop = GetArtisanWorkshop(w);
                     artisanWorkshop.Inventory += artisanWorkshop.dailyProduction;
+                    if (w.Owner == Hero.MainHero)
+                    {
+                        InformationManager.DisplayMessage(new InformationMessage(String.Format("{0} has {1}", settlement.Name, w.Name)));
+                        foreach (var i in w.ProductionProgress)
+                        {
+                            InformationManager.DisplayMessage(new InformationMessage(String.Format("Production progress: {0}", i)));
+                        }
+                    }
                 }
             }
         }
@@ -350,6 +363,14 @@ namespace TestArtisan
         {
             dataStore.SyncData("artisan_workshops", ref artisanWorkshops);
         }
+
+        public static float WorkshopProductionEfficiency(Workshop w)
+        {
+            if (w.WorkshopType.StringId != "brewery") return 1f;
+            var instance = Campaign.Current.GetCampaignBehavior<MyBehavior>();
+            var artisan = instance.GetArtisanWorkshop(w);
+            return 1.25f - artisan.dailyProduction * 0.25f;
+        }
     }
 
     public class ArtisanWorkshopState
@@ -416,10 +437,10 @@ namespace TestArtisan
 
         int _production;
         [DataSourceProperty]
-        public int ArtisanBeerProduction { get { return _production; } set { 
+        public int ArtisanBeerProduction { get { return _production; } set {
                 _production = value;
-                OnPropertyChanged("ArtisanBeerProduction"); 
-                _productionEfficiencyString = (1.25f - _production*0.25f).ToString("P0");
+                OnPropertyChanged("ArtisanBeerProduction");
+                _productionEfficiencyString = (1.25f - _production * 0.25f).ToString("P0");
                 OnPropertyChanged("ProductionEfficiencyString");
             }
         }
@@ -487,6 +508,27 @@ namespace TestArtisan
 
         void IGameStateListener.OnInitialize()
         {
+        }
+    }
+
+    [HarmonyPatch(typeof(WorkshopsCampaignBehavior), "RunTownWorkshop")]
+    public class RunTownWorkshopPatch : HarmonyPatch
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var resultNumber = AccessTools.Method(typeof(ExplainedNumber), "get_ResultNumber");
+            var list = new List<CodeInstruction>(instructions);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var instruction = list[i];
+                yield return instruction;
+                if (instruction.operand == (object)resultNumber)
+                {
+                    yield return new CodeInstruction(OpCodes.Ldarg_2, null);
+                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MyBehavior), nameof(MyBehavior.WorkshopProductionEfficiency)));
+                    yield return new CodeInstruction(OpCodes.Mul, null);
+                }
+            }
         }
     }
 }
