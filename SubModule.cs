@@ -58,7 +58,6 @@ namespace TestArtisan
             _partyItems = MobileParty.MainParty.ItemRoster;
             _beerCount = _partyItems.GetItemNumber(_beerObject);
             _mission = mission;
-
         }
 
         [DataSourceProperty]
@@ -163,7 +162,8 @@ namespace TestArtisan
                 if (w.WorkshopType.StringId == "brewery")
                 {
                     InformationManager.DisplayMessage(new InformationMessage(String.Format("{0} has {1}", settlement.Name, w.Name)));
-                    GetArtisanWorkshop(w).Inventory += 1;
+                    var artisanWorkshop = GetArtisanWorkshop(w);
+                    artisanWorkshop.Inventory += artisanWorkshop.dailyProduction;
                 }
             }
         }
@@ -267,7 +267,8 @@ namespace TestArtisan
             });
             starter.AddGameMenuOption("town_brewery", "town_brewery_manage", "Manage Production", Submenu, (args) =>
             {
-                GameStateManager.Current.PushState(GameStateManager.Current.CreateState<BreweryManagementState>());
+                var w = FirstPlayerLocalBrewery();
+                GameStateManager.Current.PushState(GameStateManager.Current.CreateState<BreweryManagementState>(w, GetArtisanWorkshop(w)));
             });
             starter.AddGameMenuOption("town_brewery", "town_brewery_back", "{=qWAmxyYz}Back to town center", (args) => { args.optionLeaveType = GameMenuOption.LeaveType.Leave; return true; },
                 (args) => GameMenu.SwitchToMenu("town"));
@@ -367,7 +368,6 @@ namespace TestArtisan
         public int dailyProduction = 1;
 
         public const int inventoryMax = 10;
-
     }
 
     public class TypeDefiner : SaveableTypeDefiner
@@ -385,25 +385,55 @@ namespace TestArtisan
 
     public class BreweryManagementState : GameState
     {
+        public Workshop workshop;
+        public ArtisanWorkshopState artisanWorkshop;
+
+        public BreweryManagementState()
+        {
+            throw new ArgumentException();
+        }
+        public BreweryManagementState(Workshop workshop, ArtisanWorkshopState artisanWorkshop)
+        {
+            this.workshop = workshop;
+            this.artisanWorkshop = artisanWorkshop;
+        }
     }
 
     public class BreweryManagementVM : ViewModel
     {
-
         [DataSourceProperty]
         public string CancelLbl => "Cancel";
         [DataSourceProperty]
         public string DoneLbl => "Done";
 
-        float _production;
+        private BreweryManagementState _state;
+
+        public BreweryManagementVM(BreweryManagementState state)
+        {
+            this._state = state;
+            ArtisanBeerProduction = _state.artisanWorkshop.dailyProduction;
+        }
+
+        int _production;
         [DataSourceProperty]
-        public float Production { get { return _production; } set { _production = value; OnPropertyChanged("Production"); } }
+        public int ArtisanBeerProduction { get { return _production; } set { 
+                _production = value;
+                OnPropertyChanged("ArtisanBeerProduction"); 
+                _productionEfficiencyString = (1.25f - _production*0.25f).ToString("P0");
+                OnPropertyChanged("ProductionEfficiencyString");
+            }
+        }
 
         [DataSourceProperty]
         public string ProductionText => "Production ratio";
 
+        private string _productionEfficiencyString;
+        [DataSourceProperty]
+        public string ProductionEfficiencyString { get { return _productionEfficiencyString; } }
+
         public void ExecuteDone()
         {
+            _state.artisanWorkshop.dailyProduction = _production;
             GameStateManager.Current.PopState();
         }
         public void ExecuteCancel()
@@ -434,7 +464,7 @@ namespace TestArtisan
         }
         void IGameStateListener.OnActivate()
         {
-            _dataSource = new BreweryManagementVM();
+            _dataSource = new BreweryManagementVM(_state);
             _layer = new GauntletLayer(0, "GauntletLayer", true);
             var movie = _layer.LoadMovie("BreweryManagement", _dataSource);
             AddLayer(_layer);
