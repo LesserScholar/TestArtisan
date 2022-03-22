@@ -1,0 +1,14 @@
+<Prefab>
+    <Window>
+        <Widget DoNotAcceptEvents="true" DoNotPassEventsToChildren="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsVisible">
+            <Children>
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" LayoutImp.LayoutMethod="HorizontalLeftToRight" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="20">
+                <Children>
+                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="80" SuggestedHeight="80" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="artisan_beer_sprite"/>
+                    <TextWidget  WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" IntText="@BeerCount" />
+                </Children>
+                </ListPanel>
+            </Children>
+        </Widget>
+    </Window>
+</Prefab>

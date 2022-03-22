@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<NPCCharacters>
+  <NPCCharacter id="artisan_brewer"
+                default_group="Infantry"
+                level="26"
+                name="Artisan Brewer"
+                occupation="CaravanGuard"
+                culture="Culture.empire">
+    <face>
+      <face_key_template value="BodyProperty.fighter_empire" />
+    </face>
+    <skills>
+    </skills>
+    <upgrade_targets></upgrade_targets>
+    <Equipments>
+      <EquipmentRoster civilian="true">
+        <equipment slot="Head"
+                   id="Item.merchants_hat" />
+        <equipment slot="Cape"
+                   id="Item.battania_cloak" />
+        <equipment slot="Body"
+                   id="Item.highland_cloth" />
+        <equipment slot="Gloves"
+                   id="Item.highland_gloves" />
+        <equipment slot="Leg"
+                   id="Item.leather_shoes" />
+      </EquipmentRoster>
+    </Equipments>
+  </NPCCharacter>
+  
+</NPCCharacters>

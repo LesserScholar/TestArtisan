@@ -95,7 +95,7 @@ namespace TestArtisan
             _partyItems.AddToCounts(_beerObject, -1);
             var agent = Mission.Current.MainAgent;
             var oldHp = agent.Health;
-            var newHp = agent.Health + 50;
+            var newHp = agent.Health + 20;
             if (newHp > agent.HealthLimit) newHp = agent.HealthLimit;
             agent.Health = newHp;
             InformationManager.DisplayMessage(new InformationMessage(String.Format("Healed for {0} hp", newHp - oldHp)));

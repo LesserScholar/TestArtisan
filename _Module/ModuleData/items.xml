@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Items>
+  <Item id="artisan_beer"
+        name="Artisan Beer"
+        mesh="cup2"
+        item_category="artisan_beer"
+        IsFood="false"
+        value="50"
+        weight="10"
+        Type="Goods">
+    <Flags Civilian="true" />
+  </Item>
+</Items>

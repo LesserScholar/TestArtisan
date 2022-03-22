@@ -1,0 +1,39 @@
+<Prefab>
+    <Window>
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+            <Children>
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" LayoutImp.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center" Text="Production ratio" />
+                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" LayoutImp.LayoutMethod="HorizontalLeftToRight" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="60" MarginTop="20">
+                            <Children>
+                                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" IntText="@ArtisanBeerProduction" />
+
+                                <SliderWidget MarginLeft="50" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="290" SuggestedHeight="33.6" VerticalAlignment="Center" Filler="Filler" Handle="SliderHandle" Locked="false" IsDiscrete="true" MaxValueInt="5" MinValueInt="0" ValueInt="@ArtisanBeerProduction">
+                                    <Children>
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="362" SuggestedHeight="38" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="SPGeneral\SPOptions\standart_slider_canvas" IsEnabled="false" />
+                                        <Widget Id="Filler" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="345" SuggestedHeight="35" VerticalAlignment="Center" Sprite="SPGeneral\SPOptions\standart_slider_fill" ClipContents="true">
+                                            <Children>
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="345" SuggestedHeight="35" HorizontalAlignment="Left" VerticalAlignment="Center" Sprite="SPGeneral\SPOptions\standart_slider_fill" />
+                                            </Children>
+                                        </Widget>
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="400" SuggestedHeight="65" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="SPGeneral\SPOptions\standart_slider_frame" IsEnabled="false" />
+                                        <ImageWidget Id="SliderHandle" DoNotAcceptEvents="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="14" SuggestedHeight="38" HorizontalAlignment="Left" VerticalAlignment="Center" Brush="SPOptions.Slider.Handle" />
+                                    </Children>
+                                </SliderWidget>
+                                <TextWidget MarginLeft="60" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" Text="@ProductionEfficiencyString" />
+                            </Children>
+                        </ListPanel>
+                        <ListPanel WidthSizePolicy="Fixed" SuggestedWidth="540" HeightSizePolicy="CoverChildren" LayoutImp.LayoutMethod="HorizontalLeftToRight" MarginLeft="20" MarginTop="20">
+                            <Children>
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" Text="Artisan Beer" />
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginLeft="230" Text="Production Efficiency" />
+                            </Children>
+                        </ListPanel>
+                    </Children>
+                </ListPanel>
+                <Standard.DialogCloseButtons Parameter.CancelButtonAction="ExecuteCancel" Parameter.CancelButtonText="@CancelLbl" Parameter.DoneButtonAction="ExecuteDone" Parameter.DoneButtonText="@DoneLbl" />
+            </Children>
+        </Widget>
+    </Window>
+</Prefab>
