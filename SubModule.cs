@@ -283,7 +283,7 @@ namespace TestArtisan
                         list.Add(new InquiryElement(artisanBeer, "Artisan Beer", new ImageIdentifier(artisanBeer)));
                     }
                 }
-                InformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData("Inventory", "Take item", list, true, 5, "Take", new TextObject("{=3CpNUnVl}Cancel", null).ToString(), TakeFromStorage, (args) => { }));
+                InformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData("Inventory", "Take item", list, true, 20, "Take", new TextObject("{=3CpNUnVl}Cancel", null).ToString(), TakeFromStorage, (args) => { }));
             });
             starter.AddGameMenuOption("town_brewery", "town_brewery_manage", "Manage Production", Submenu, (args) =>
             {
